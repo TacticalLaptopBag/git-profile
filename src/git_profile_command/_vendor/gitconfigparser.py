@@ -215,7 +215,7 @@ class SectionConstraint(object):
 class GitConfigParser(cp.RawConfigParser, metaclass=MetaParserBuilder):
 
     t_lock = LockFile
-    re_comment = re.compile('^\s*[#;]')
+    re_comment = re.compile(r'^\s*[#;]')
 
     # } END configuration
 

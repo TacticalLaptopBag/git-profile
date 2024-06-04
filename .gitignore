@@ -4,3 +4,4 @@
 .venv*/
 dist/
 build/
+.pdm-python
