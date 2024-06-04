@@ -26,6 +26,7 @@ profile will load configuration options from a Git configuration file and
 write them to the current repository.
 """
 
+from __future__ import annotations
 import argparse
 import base64
 import configparser
@@ -35,10 +36,10 @@ import os
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
-import typing as t
 from pathlib import Path
 from shlex import quote
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any
 
 from databind.json import load as from_json, dump as to_json
 
@@ -48,12 +49,12 @@ __author__ = "Niklas Rosenstein <rosensteinniklas@gmail.com>"
 __version__ = "1.1.2"
 
 
-def git(*args):
+def git(*args: str) -> str:
     command = "git " + " ".join(map(quote, args))
     return subprocess.check_output(command, shell=True).decode().strip()
 
 
-def find_git_dir():
+def find_git_dir() -> str | None:
     directory = os.getcwd()
     prev = None
     while True:
@@ -70,15 +71,15 @@ def find_git_dir():
         if directory == prev:
             return None
         prev = directory
-    return os.path.join(directory, ".git")
+    assert False
 
 
 @dataclass
 class Change:
-    type: "ChangeType"
+    type: ChangeType
     section: str
-    key: t.Optional[str]
-    value: t.Optional[str]
+    key: str | None
+    value: str | None
 
 
 class ChangeType(enum.Enum):
@@ -89,14 +90,14 @@ class ChangeType(enum.Enum):
 
 @dataclass
 class Changeset:
-    changes: t.List[Change] = field(default_factory=list)
+    changes: list[Change] = field(default_factory=list)
 
     @classmethod
     def from_b64(cls, data: bytes) -> "Changeset":
-        return Changeset(from_json(t.List[Change], json.loads(base64.b64decode(data).decode("utf8"))))
+        return Changeset(from_json(json.loads(base64.b64decode(data).decode("utf8")), list[Change]))
 
     def to_b64(self) -> bytes:
-        return base64.b64encode(json.dumps(to_json(self.changes, t.List[Change])).encode("utf8"))
+        return base64.b64encode(json.dumps(to_json(self.changes, list[Change])).encode("utf8"))
 
     def revert(self, config: configparser.RawConfigParser) -> None:
         for change in reversed(self.changes):
@@ -122,32 +123,39 @@ class Changeset:
         config.set(section, key, value)
 
 
-class MergeReadConfig:
-    def __init__(self, configs):
+if TYPE_CHECKING:
+
+    class _MergeReadConfigBase(GitConfigParser): ...
+else:
+
+    class _MergeReadConfigBase: ...
+
+
+class MergeReadConfig(_MergeReadConfigBase):
+    def __init__(self, configs: list[GitConfigParser]):
         self.configs = configs
 
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         return getattr(self.configs[0], name)
 
-    def get(self, section, option, **kwargs):
-        fallback = kwargs.pop("fallback", NotImplemented)
+    def get_value(self, section: str, option: str, default: str | None = None) -> str:
         for cfg in self.configs:
             try:
-                return cfg.get(section, option, **kwargs)
+                return cfg.get(section, option)
             except configparser.NoOptionError:
                 pass
-        if fallback is not NotImplemented:
-            return fallback
-        raise configparser.NoOptionError((section, option))
+        if default is not None:
+            return default
+        raise configparser.NoOptionError(option, section)
 
 
-def main(argv: t.Optional[t.List[str]] = None, prog: t.Optional[str] = None) -> int:
+def main(argv: list[str] | None = None, prog: str | None = None) -> int:
     parser = argparse.ArgumentParser(prog=prog)
     parser.add_argument("profile", nargs="?", help="The name of the profile to use.")
     parser.add_argument("-d", "--diff", action="store_true", help="Print the config diff.")
     args = parser.parse_args(argv)
 
-    global_config = GitConfigParser(os.path.expanduser("~/.gitconfig"))
+    global_config = GitConfigParser(os.path.expanduser("~/.gitconfig"))  # type: ignore[no-untyped-call]
     profiles = set(x.split(".")[0] for x in global_config.sections() if "." in x and " " not in x)
     profiles.add("default")
 
@@ -158,8 +166,8 @@ def main(argv: t.Optional[t.List[str]] = None, prog: t.Optional[str] = None) -> 
 
     local_config_fn = os.path.join(git_dir, "config")
     assert os.path.isfile(local_config_fn), local_config_fn
-    local_config = GitConfigParser(local_config_fn, read_only=False)
-    current_profile = local_config.get_value("profile", "current", "default")
+    local_config = GitConfigParser(local_config_fn, read_only=False)  # type: ignore[no-untyped-call]
+    current_profile = local_config.get_value("profile", "current", "default")  # type: ignore[no-untyped-call]
     current_config_text = Path(local_config_fn).read_text()
 
     if not args.profile:
@@ -172,10 +180,10 @@ def main(argv: t.Optional[t.List[str]] = None, prog: t.Optional[str] = None) -> 
             return 1
 
         config = MergeReadConfig([local_config, global_config])
-        changeset: str = local_config.get_value("profile", "changeset", "")
+        changeset: str = local_config.get_value("profile", "changeset", "")  # type: ignore[no-untyped-call]
         if changeset:
             changes = Changeset.from_b64(changeset.encode("ascii"))
-            changes.revert(config)  # type: ignore
+            changes.revert(config)
 
         if args.profile != "default":
             changes = Changeset()
@@ -183,7 +191,7 @@ def main(argv: t.Optional[t.List[str]] = None, prog: t.Optional[str] = None) -> 
                 if section.startswith(args.profile + "."):
                     key = section.split(".", 1)[1]
                     for opt in global_config.options(section):
-                        changes.set(config, key, opt, global_config.get(section, opt))  # type: ignore
+                        changes.set(config, key, opt, global_config.get_value(section, opt))  # type: ignore
             changes.set(local_config, "profile", "current", args.profile)
             changes.set(local_config, "profile", "changeset", changes.to_b64().decode("ascii"))
 
