@@ -1,0 +1,9 @@
+release_date: '2024-07-04'
+changes:
+- type: fix
+  component: general
+  description: Fix support for Python 3.12 by upgrading Databind to v4.
+  fixes: []
+- type: improvement
+  component: general
+  description: Add Mypy and use Ruff for checks/formatting.
