@@ -46,5 +46,9 @@ warn_redundant_casts = true
 warn_unreachable = true
 warn_unused_ignores = true
 
+[[tool.mypy.overrides]]
+module = "git_profile_command._vendor.gitconfigparser"
+ignore_errors = true
+
 [tool.ruff]
 line-length = 120

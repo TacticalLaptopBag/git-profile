@@ -13,7 +13,7 @@ from collections import OrderedDict
 from builtins import open
 
 
-__all__ = ('GitConfigParser', 'SectionConstraint')
+__all__ = ("GitConfigParser", "SectionConstraint")
 
 # from git.compat import defenc
 defenc = sys.getdefaultencoding()
@@ -29,19 +29,22 @@ def with_metaclass(meta, *bases):
         def __new__(cls, name, nbases, d):
             if nbases is None:
                 return type.__new__(cls, name, (), d)
-            if not PY3 and '___metaclass__' not in d:
-                d['__metaclass__'] = meta
+            if not PY3 and "___metaclass__" not in d:
+                d["__metaclass__"] = meta
             # end
             return meta(name, bases, d)
+
         # end
+
     # end metaclass
-    return metaclass(meta.__name__ + 'Helper', None, {})
+    return metaclass(meta.__name__ + "Helper", None, {})
     # end handle py2
 
 
 # from git.compat import FileType
 if PY3:
     import io
+
     FileType = io.IOBase
 
     def byte_ord(b):
@@ -52,6 +55,7 @@ if PY3:
 
     def mviter(d):
         return d.values()
+
     unicode = str
 else:
     FileType = builtins.file
@@ -106,7 +110,7 @@ delete %r in case the lock is illegal""" % (self._file_path, lock_file)
 
         lfp = self._lock_file_path()
         try:
-            if os.name == 'nt':
+            if os.name == "nt":
                 os.chmod(lfp, 0o777)
             # END handle win32
             os.remove(lfp)
@@ -116,22 +120,18 @@ delete %r in case the lock is illegal""" % (self._file_path, lock_file)
 
 
 class MetaParserBuilder(abc.ABCMeta):
-
     def __new__(metacls, name, bases, clsdict):
-        kmm = '_mutating_methods_'
+        kmm = "_mutating_methods_"
         if kmm in clsdict:
             mutating_methods = clsdict[kmm]
             for base in bases:
-                methods = (
-                    t for t in inspect.getmembers(
-                        base, inspect.isroutine) if not t[0].startswith("_"))
+                methods = (t for t in inspect.getmembers(base, inspect.isroutine) if not t[0].startswith("_"))
                 for method_name, method in methods:
                     if method_name in clsdict:
                         continue
                     method_with_values = needs_values(method)
                     if method_name in mutating_methods:
-                        method_with_values = set_dirty_and_flush_changes(
-                            method_with_values)
+                        method_with_values = set_dirty_and_flush_changes(method_with_values)
                     # END mutating methods handling
 
                     clsdict[method_name] = method_with_values
@@ -139,33 +139,27 @@ class MetaParserBuilder(abc.ABCMeta):
             # END for each base
         # END if mutating methods configuration is set
 
-        new_type = super(
-            MetaParserBuilder,
-            metacls).__new__(
-            metacls,
-            name,
-            bases,
-            clsdict)
+        new_type = super(MetaParserBuilder, metacls).__new__(metacls, name, bases, clsdict)
         return new_type
 
 
 def needs_values(func):
-
     def assure_data_present(self, *args, **kwargs):
         self.read()
         return func(self, *args, **kwargs)
+
     # END wrapper method
     assure_data_present.__name__ = func.__name__
     return assure_data_present
 
 
 def set_dirty_and_flush_changes(non_const_func):
-
     def flush_changes(self, *args, **kwargs):
         rval = non_const_func(self, *args, **kwargs)
         self._dirty = True
         self.write()
         return rval
+
     # END wrapper method
     flush_changes.__name__ = non_const_func.__name__
     return flush_changes
@@ -184,7 +178,7 @@ class SectionConstraint(object):
         "has_option",
         "remove_section",
         "remove_option",
-        "options"
+        "options",
     )
 
     def __init__(self, config, section):
@@ -196,13 +190,11 @@ class SectionConstraint(object):
 
     def __getattr__(self, attr):
         if attr in self._valid_attrs_:
-            return lambda *args, **kwargs: self._call_config(
-                attr, *args, **kwargs)
+            return lambda *args, **kwargs: self._call_config(attr, *args, **kwargs)
         return super().__getattribute__(attr)
 
     def _call_config(self, method, *args, **kwargs):
-        return getattr(self._config, method)(
-            self._section_name, *args, **kwargs)
+        return getattr(self._config, method)(self._section_name, *args, **kwargs)
 
     @property
     def config(self):
@@ -213,33 +205,25 @@ class SectionConstraint(object):
 
 
 class GitConfigParser(cp.RawConfigParser, metaclass=MetaParserBuilder):
-
     t_lock = LockFile
-    re_comment = re.compile(r'^\s*[#;]')
+    re_comment = re.compile(r"^\s*[#;]")
 
     # } END configuration
 
-    optvalueonly_source = r'\s*(?P<option>[^:=\s][^:=]*)'
+    optvalueonly_source = r"\s*(?P<option>[^:=\s][^:=]*)"
 
     OPTVALUEONLY = re.compile(optvalueonly_source)
 
-    OPTCRE = re.compile(
-        optvalueonly_source +
-        r'\s*(?P<vi>[:=])\s*' +
-        r'(?P<value>.*)$')
+    OPTCRE = re.compile(optvalueonly_source + r"\s*(?P<vi>[:=])\s*" + r"(?P<value>.*)$")
 
     del optvalueonly_source
 
-    _mutating_methods_ = (
-        "add_section",
-        "remove_section",
-        "remove_option",
-        "set")
+    _mutating_methods_ = ("add_section", "remove_section", "remove_option", "set")
 
     def __init__(self, file_or_files, read_only=True, merge_includes=True):
         cp.RawConfigParser.__init__(self, dict_type=OrderedDict)
 
-        if not hasattr(self, '_proxies'):
+        if not hasattr(self, "_proxies"):
             self._proxies = self._dict()
 
         self._file_or_files = file_or_files
@@ -286,8 +270,8 @@ class GitConfigParser(cp.RawConfigParser, metaclass=MetaParserBuilder):
 
     def optionxform(self, optionstr):
         """
-Do not transform options in any way when writing
-"""
+        Do not transform options in any way when writing
+        """
         return optionstr
 
     def _read(self, fp, fpname):
@@ -298,14 +282,15 @@ Do not transform options in any way when writing
         e = None
 
         def string_decode(v):
-            if v[-1] == '\\':
+            if v[-1] == "\\":
                 v = v[:-1]
             # end cut trailing escapes to prevent decode error
 
             if PY3:
-                return v.encode(defenc).decode('unicode_escape')
-            return v.decode('string_escape')
+                return v.encode(defenc).decode("unicode_escape")
+            return v.decode("string_escape")
             # end
+
         # end
 
         while True:
@@ -315,22 +300,22 @@ Do not transform options in any way when writing
                 break
             lineno = lineno + 1
             # comment or blank line?
-            if line.strip() == '' or self.re_comment.match(line):
+            if line.strip() == "" or self.re_comment.match(line):
                 continue
-            if line.split(None, 1)[0].lower() == 'rem' and line[0] in "rR":
+            if line.split(None, 1)[0].lower() == "rem" and line[0] in "rR":
                 # no leading whitespace
                 continue
 
             # is it a section header?
             mo = self.SECTCRE.match(line.strip())
             if not is_multi_line and mo:
-                sectname = mo.group('header').strip()
+                sectname = mo.group("header").strip()
                 if sectname in self._sections:
                     cursect = self._sections[sectname]
                 elif sectname == cp.DEFAULTSECT:
                     cursect = self._defaults
                 else:
-                    cursect = self._dict((('__name__', sectname),))
+                    cursect = self._dict((("__name__", sectname),))
                     self._sections[sectname] = cursect
                     self._proxies[sectname] = None
                 # So sections can't start with a continuation line
@@ -344,19 +329,17 @@ Do not transform options in any way when writing
                 if mo:
                     # We might just have handled the last line, which could
                     # contain a quotation we want to remove
-                    optname, vi, optval = mo.group('option', 'vi', 'value')
-                    if vi in ('=', ':') and ';' in optval and not optval.strip(
-                    ).startswith('"'):
-                        pos = optval.find(';')
+                    optname, vi, optval = mo.group("option", "vi", "value")
+                    if vi in ("=", ":") and ";" in optval and not optval.strip().startswith('"'):
+                        pos = optval.find(";")
                         if pos != -1 and optval[pos - 1].isspace():
                             optval = optval[:pos]
                     optval = optval.strip()
                     if optval == '""':
-                        optval = ''
+                        optval = ""
                     # end handle empty string
                     optname = self.optionxform(optname.rstrip())
-                    if len(optval) > 1 and optval[
-                            0] == '"' and optval[-1] != '"':
+                    if len(optval) > 1 and optval[0] == '"' and optval[-1] != '"':
                         is_multi_line = True
                         optval = string_decode(optval[1:])
                     # end handle multi-line
@@ -382,7 +365,7 @@ Do not transform options in any way when writing
             raise e
 
     def _has_includes(self):
-        return self._merge_includes and self.has_section('include')
+        return self._merge_includes and self.has_section("include")
 
     def read(self):
         if self._is_initialized:
@@ -407,7 +390,7 @@ Do not transform options in any way when writing
                 try:
                     if not hasattr(builtins, "open"):
                         return
-                    fp = builtins.open(file_path, 'rb')
+                    fp = builtins.open(file_path, "rb")
                     close_fp = True
                 except IOError:
                     continue
@@ -422,21 +405,19 @@ Do not transform options in any way when writing
                     fp.close()
             # END read-handling
             if self._has_includes():
-                for _, include_path in self.items('include'):
-                    if include_path.startswith('~'):
+                for _, include_path in self.items("include"):
+                    if include_path.startswith("~"):
                         include_path = os.path.expanduser(include_path)
                     if not os.path.isabs(include_path):
                         if not close_fp:
                             continue
-# msg = "Need absolute paths to be sure our cycle checks will work"
+                        # msg = "Need absolute paths to be sure our cycle checks will work"
                         msg = "Need absolute paths"
                         assert os.path.isabs(file_path), msg
-                        include_path = os.path.join(
-                            os.path.dirname(file_path), include_path)
+                        include_path = os.path.join(os.path.dirname(file_path), include_path)
                     # end make include path absolute
                     include_path = os.path.normpath(include_path)
-                    if include_path in seen or not os.access(
-                            include_path, os.R_OK):
+                    if include_path in seen or not os.access(include_path, os.R_OK):
                         continue
                     seen.add(include_path)
                     files_to_read.append(include_path)
@@ -452,13 +433,11 @@ Do not transform options in any way when writing
     def _write(self, fp):
         def write_section(name, section_dict):
             fp.write(("[%s]\n" % name).encode(defenc))
-            for (key, value) in section_dict.items():
+            for key, value in section_dict.items():
                 if key != "__name__":
-                    fp.write(
-                        ("\t%s = %s\n" %
-                         (key, self._value_to_string(value).replace(
-                             '\n', '\n\t'))).encode(defenc))
+                    fp.write(("\t%s = %s\n" % (key, self._value_to_string(value).replace("\n", "\n\t"))).encode(defenc))
                 # END if key is not __name__
+
         # END section writing
 
         if self._defaults:
@@ -468,7 +447,7 @@ Do not transform options in any way when writing
 
     def items(self, section_name):
         for k, v in super().items(section_name):
-            if k != '__name__':
+            if k != "__name__":
                 yield (k, v)
 
     @needs_values
@@ -499,7 +478,7 @@ Set merge_includes=False to prevent this
         close_fp = False
 
         # we have a physical file on disk, so get a lock
-        if isinstance(fp, string_types + (FileType, )):
+        if isinstance(fp, string_types + (FileType,)):
             self._lock._obtain_lock()
         # END get lock for physical files
 
@@ -509,7 +488,7 @@ Set merge_includes=False to prevent this
         else:
             fp.seek(0)
             # make sure we do not overwrite into an existing file
-            if hasattr(fp, 'truncate'):
+            if hasattr(fp, "truncate"):
                 fp.truncate()
             # END
         # END handle stream or file
@@ -527,8 +506,7 @@ Set merge_includes=False to prevent this
 
     def _assure_writable(self, method_name):
         if self.read_only:
-            msg = "Cannot execute non-constant method %s.%s" % (
-                self, method_name)
+            msg = "Cannot execute non-constant method %s.%s" % (self, method_name)
             raise IOError(msg)
 
     @property
@@ -559,9 +537,9 @@ Set merge_includes=False to prevent this
 
         # try boolean values as git uses them
         vl = valuestr.lower()
-        if vl == 'false':
+        if vl == "false":
             return False
-        if vl == 'true':
+        if vl == "true":
             return True
 
         msg = "Invalid value type: only int, long, float and str are allowed"
@@ -587,9 +565,7 @@ Set merge_includes=False to prevent this
         if not self.has_section(section):
             raise ValueError("Source section '%s' doesn't exist" % section)
         if self.has_section(new_name):
-            raise ValueError(
-                "Destination section '%s' already exists" %
-                new_name)
+            raise ValueError("Destination section '%s' already exists" % new_name)
 
         super().add_section(new_name)
         for k, v in self.items(section):
