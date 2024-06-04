@@ -34,13 +34,13 @@ import json
 import os
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 import typing as t
 from pathlib import Path
 from shlex import quote
+from dataclasses import dataclass, field
 
-import nr.fs
-from databind.core import datamodel, field
-from databind.json import from_json, to_json
+from databind.json import load as from_json, dump as to_json
 
 from ._vendor.gitconfigparser import GitConfigParser
 
@@ -73,7 +73,7 @@ def find_git_dir():
   return os.path.join(directory, '.git')
 
 
-@datamodel
+@dataclass
 class Change:
   type: 'ChangeType'
   section: str
@@ -87,7 +87,7 @@ class ChangeType(enum.Enum):
   DEL = enum.auto()
 
 
-@datamodel
+@dataclass
 class Changeset:
   changes: t.List[Change] = field(default_factory=list)
 
@@ -192,9 +192,11 @@ def main(argv: t.Optional[t.List[str]] = None, prog: t.Optional[str] = None) -> 
     del local_config
 
     if args.diff and Path(local_config_fn).read_text() != current_config_text:
-      with nr.fs.tempfile('_old', text=True) as a:
-        a.write(current_config_text)
-        a.close()
+      with TemporaryDirectory() as tmpdir:
+        tmpfile = os.path.join(tmpdir, "_old.ini")
+        with open(tmpfile, "w") as fp:
+          fp.write(current_config_text)
+          fp.close()
         print()
         subprocess.call(['git', 'diff', '--no-index', a.name, local_config_fn])
         print()
