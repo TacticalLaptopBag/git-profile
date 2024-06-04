@@ -198,7 +198,7 @@ def main(argv: t.Optional[t.List[str]] = None, prog: t.Optional[str] = None) -> 
           fp.write(current_config_text)
           fp.close()
         print()
-        subprocess.call(['git', 'diff', '--no-index', a.name, local_config_fn])
+        subprocess.call(['git', 'diff', '--no-index', tmpfile, local_config_fn])
         print()
 
     print('Switched to profile "{}".'.format(args.profile))
